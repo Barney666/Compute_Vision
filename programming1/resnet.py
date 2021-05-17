@@ -5,6 +5,7 @@ import os
 from torchvision import models
 from torchvision import datasets
 from torchvision import transforms  #包含resize、crop等常见的data augmentation操作
+from torch.utils.data import DataLoader
 from PIL import Image
 import argparse  #python标准库里面用来处理命令行参数的库
 import torchvision
@@ -15,7 +16,6 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 
 data_dir = "./"  #文件路径
-model_name = "resnet"
 num_classes = 80
 batch_size = 32     # 数据打乱后分散成多少个batch
 num_epochs = 15
@@ -26,7 +26,7 @@ all_imgs = datasets.ImageFolder(os.path.join(data_dir, "train"), transforms.Comp
     transforms.RandomResizedCrop(input_size),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor()]))
-loader = torch.utils.data.DataLoader(all_imgs, batch_size=batch_size, shuffle=True, num_workers=4)
+loader = DataLoader(all_imgs, batch_size=batch_size, shuffle=True, num_workers=4)
 
 
 
@@ -45,7 +45,7 @@ data_transforms = {
          ])
 }
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),data_transforms[x]) for x in ["train", "val"]}
-dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x],
+dataloaders_dict = {x: DataLoader(image_datasets[x],
                     batch_size=batch_size, shuffle=True,num_workers=4) for x in ["train", "val"] }
 
 
@@ -71,19 +71,16 @@ def set_parameter_requires_grad(model, feature_extract):
             param.requires_grad = False  # pytorch，是否需要求该参数的梯度
 
 
-def initialize_model(model_name, num_classes, feature_extract, use_pretrained=True):
-    if model_name == "resnet":
-        model_ft = models.resnet18(pretrained=use_pretrained)  # 使用pytorch中预训练的resnet模型
-        set_parameter_requires_grad(model_ft, feature_extract)
-        num_ftrs = model_ft.fc.in_features  # 提取预训练模型中的固定参数
-        model_ft.fc = nn.Linear(num_ftrs, num_classes)  # 修改分类类别数
-        input_size = 224
-    else:
-        print("model not implemented")
-        return None, None
+def initialize_model(num_classes, feature_extract, use_pretrained=True):
+    model_ft = models.resnet18(pretrained=use_pretrained)  # 使用pytorch中预训练的resnet模型
+    set_parameter_requires_grad(model_ft, feature_extract)
+    num_ftrs = model_ft.fc.in_features  # 提取预训练模型中的固定参数
+    model_ft.fc = nn.Linear(num_ftrs, num_classes)  # 修改分类类别数
+    input_size = 224
+
     return model_ft, input_size
 
-model_ft, input_size = initialize_model(model_name, num_classes, feature_extract, use_pretrained=True)
+model_ft, input_size = initialize_model(num_classes, feature_extract, use_pretrained=True)
 
 
 def train_model(model, dataloaders, loss_fn, optimizer, num_epochs=5):

@@ -15,7 +15,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 在安�
 os.environ["OMP_NUM_THREADS"] = "1"
 
 data_dir = "./"  # 文件路径
-model_name = "resnet"
 num_classes = 80
 batch_size = 128  # 数据打乱后分散成多少个batch
 num_epochs = 50
@@ -72,37 +71,34 @@ def set_parameter_requires_grad(model, feature_extract):
             param.requires_grad = False  # pytorch，是否需要求该参数的梯度
 
 
-def initialize_model(model_name, num_classes, feature_extract, use_pretrained=True):
-    if model_name == "resnet":
-        #         model_ft = models.resnet18(pretrained=use_pretrained)  # 使用pytorch中预训练的resnet模型
+def initialize_model(num_classes, feature_extract, use_pretrained=True):
+    # model_ft = models.resnet18(pretrained=use_pretrained)  # 使用pytorch中预训练的resnet模型
+    #
+    # model_ft = models.resnet18(pretrained=False)
+    # pre = torch.load('resnet18-5c106cde.pth')
+    # model_ft.load_state_dict(pre)
+    # set_parameter_requires_grad(model_ft, feature_extract)
+    # num_ftrs = model_ft.fc.in_features  # 提取预训练模型中的固定参数
+    # model_ft.fc = nn.Linear(num_ftrs, num_classes)  # 修改分类类别数
 
-        #         model_ft = models.resnet18(pretrained=False)
-        #         pre = torch.load('resnet18-5c106cde.pth')
-        #         model_ft.load_state_dict(pre)
-        #         set_parameter_requires_grad(model_ft, feature_extract)
-        #         num_ftrs = model_ft.fc.in_features  # 提取预训练模型中的固定参数
-        #         model_ft.fc = nn.Linear(num_ftrs, num_classes)  # 修改分类类别数
+    model_ft = models.vgg16(pretrained=False)
+    pre = torch.load('vgg16-397923af.pth')
+    model_ft.load_state_dict(pre)
 
-        model_ft = models.vgg16(pretrained=False)
-        pre = torch.load('vgg16-397923af.pth')
-        model_ft.load_state_dict(pre)
+    model_ft.classifier = nn.Sequential(  # 定义自己的分类层
+        nn.Linear(512 * 7 * 7, 512),  # 512 * 7 * 7不能改变 ，由VGG16网络决定的，第二个参数为神经元个数可以微调
+        nn.ReLU(True),
+        nn.Dropout(),
+        nn.Linear(512, 128),
+        nn.ReLU(True),
+        nn.Dropout(),
+        nn.Linear(128, num_classes))
+    input_size = 224
 
-        model_ft.classifier = nn.Sequential(  # 定义自己的分类层
-            nn.Linear(512 * 7 * 7, 512),  # 512 * 7 * 7不能改变 ，由VGG16网络决定的，第二个参数为神经元个数可以微调
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(512, 128),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(128, num_classes))
-        input_size = 224
-    else:
-        print("model not implemented")
-        return None, None
     return model_ft, input_size
 
 
-model_ft, input_size = initialize_model(model_name, num_classes, feature_extract, use_pretrained=True)
+model_ft, input_size = initialize_model(num_classes, feature_extract, use_pretrained=True)
 
 
 def train_model(model, dataloaders, loss_fn, optimizer, num_epochs=5):
