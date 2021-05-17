@@ -1,0 +1,10 @@
+.idea
+venv
+
+
+programming1/.idea
+programming1/train
+programming1/val
+programming1/val_unclassified
+programming1/test
+programming1/model
